@@ -6,105 +6,85 @@
     <title>3D Real-time Video Stream Theater</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; color: #fff; font-family: sans-serif; }
-        #info { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 8px; pointer-events: auto; max-width: 300px; z-index: 10; }
+        #info { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 8px; pointer-events: auto; max-width: 300px; z-index: 100; }
         h1 { margin: 0 0 5px 0; font-size: 16px; }
-        #videoTitle { font-size: 11px; color: #5865F2; margin-bottom: 10px; word-break: break-all; }
-        .input-group { display: flex; gap: 5px; margin-top: 10px; }
-        input[type="text"] { flex: 1; background: #222; border: 1px solid #444; color: #fff; padding: 5px; border-radius: 4px; font-size: 12px; }
-        button { background: #5865F2; border: none; color: #fff; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
-        button:hover { background: #4752C4; }
+        p { margin: 0; font-size: 11px; color: #ccc; line-height: 1.4; }
+
+        /* 3D空間に配置するしあtube専用コンテナ */
+        .theater-container {
+            width: 1280px;
+            height: 720px;
+            background: #000;
+            border: 2px solid #5865F2;
+            box-shadow: 0 0 30px rgba(88, 101, 242, 0.5);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .theater-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
     </style>
-    <!-- Three.js & OrbitControls -->
+    <!-- Three.js ＆ 立体操作・HTML要素3D配置用ライブラリ -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS3DRenderer.js"></script>
 </head>
 <body>
     <div id="info">
-        <h1>独自3Dストリームシアター</h1>
-        <div id="videoTitle">動画待ち受け中...</div>
-        <div>
-            <label style="font-size: 12px; color: #ccc;">YouTube / Shorts URL:</label>
-            <div class="input-group">
-                <input type="text" id="videoUrl" placeholder="https://www.youtube.com/watch?v=...">
-                <button id="playBtn">制限をバイパスして再生</button>
-            </div>
-        </div>
+        <h1>3D 規制解除シアター</h1>
+        <p>3D空間内に「しあtube」のコアシステムを完全統合しました。学校のブロックやYouTubeの制限をすべてスルーして、画面内の検索や再生を自由に行えます。</p>
+        <p style="margin-top: 5px; color: #5865F2;">※ドラッグでカメラ回転、ホイールでズーム</p>
     </div>
 
-    <!-- 回避されたビデオストリームを受け取るHTML5ビデオ要素 -->
-    <video id="videoElement" crossorigin="anonymous" playsinline style="display:none;"></video>
-
     <script>
-        // 1. 3D空間の基本設定
+        // 1. 3D空間とCSS3Dレンダラーの初期化
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 5000);
+        camera.position.set(0, 0, 1000);
 
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        camera.position.set(0, 0, 25);
-        controls.update();
+        const rendererCSS = new THREE.CSS3DRenderer();
+        rendererCSS.setSize(window.innerWidth, window.innerHeight);
+        rendererCSS.domElement.style.position = 'absolute';
+        rendererCSS.domElement.style.top = '0';
+        document.body.appendChild(rendererCSS.domElement);
 
-        // 2. 独自3Dスクリーンの作成
-        const video = document.getElementById('videoElement');
-        const videoTexture = new THREE.VideoTexture(video);
-        videoTexture.minFilter = THREE.LinearFilter;
-        videoTexture.magFilter = THREE.LinearFilter;
+        const controls = new THREE.OrbitControls(camera, rendererCSS.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
 
-        // 16:9 のスクリーンを生成
-        const screenGeometry = new THREE.PlaneGeometry(32, 18);
-        const screenMaterial = new THREE.MeshBasicMaterial({ map: videoTexture, side: THREE.DoubleSide });
-        const screenMesh = new THREE.Mesh(screenGeometry, screenMaterial);
-        scene.add(screenMesh);
+        // 2. しあtubeを埋め込んだDOM要素を作成して3Dオブジェクト化
+        const container = document.createElement('div');
+        container.className = 'theater-container';
 
-        // 3. Invidiousのロジックを叩いて規制をスルー再生
-        document.getElementById('playBtn').addEventListener('click', async () => {
-            const url = document.getElementById('videoUrl').value;
-            if (!url) return alert('URLを入力してください');
+        const iframe = document.createElement('iframe');
+        // 自分のサーバーから中継されるしあtubeのコアシステムを読み込む
+        iframe.src = '/siatube-core';
+        iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+        iframe.allowFullscreen = true;
+        container.appendChild(iframe);
 
-            document.getElementById('videoTitle').innerText = '制限をバイパス中...';
+        // HTML要素をそのままThree.jsの3D空間に配置可能なオブジェクトへ変換
+        const objectCSS = new THREE.CSS3DObject(container);
+        objectCSS.position.set(0, 0, 0);
+        scene.add(objectCSS);
 
-            try {
-                // 自前バックエンド経由でInvidiousネットワークに問い合わせ
-                const response = await fetch(`/api/stream-url?url=${encodeURIComponent(url)}`);
-                const data = await response.json();
+        // 天体（太陽系など）は完全に消去された状態を維持
 
-                if (data.error) {
-                    alert(data.error);
-                    document.getElementById('videoTitle').innerText = 'エラーが発生しました';
-                    return;
-                }
-
-                document.getElementById('videoTitle').innerText = `再生中: ${data.title}`;
-
-                // 規制スルーされた生のストリームURLを直接挿入
-                video.src = data.streamUrl;
-                video.load();
-                
-                video.play().catch(err => {
-                    console.error("Playback failed:", err);
-                    alert("ブラウザの自動再生ブロックにかかりました。画面をどこでもいいのでクリックしてから再度再生を押してください。");
-                });
-
-            } catch (err) {
-                console.error("Bypass API error:", err);
-                document.getElementById('videoTitle').innerText = '通信エラーが発生しました';
-            }
-        });
-
-        // 4. アニメーションループ
+        // 3. アニメーションループ
         function animate() {
             requestAnimationFrame(animate);
             controls.update();
-            renderer.render(scene, camera);
+            rendererCSS.render(scene, camera);
         }
         animate();
 
+        // 画面リサイズ対応
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            rendererCSS.setSize(window.innerWidth, window.innerHeight);
         });
     </script>
 </body>

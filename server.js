@@ -14,64 +14,21 @@ const PORT = process.env.PORT || 8080;
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 世界中の安定したInvidiousインスタンスのリスト（負荷分散・生存確認用）
-const INVIDIOUS_INSTANCES = [
-    'https://invidious.yewtu.be',
-    'https://inv.tux.it',
-    'https://invidious.nerdvpn.de',
-    'https://invidious.flokinet.to',
-    'https://inv.riverside.rocks'
-];
-
-// YouTubeの動画IDを抽出するヘルパー
-function getYouTubeId(url) {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
-    const match = url.match(regExp);
-    return (match && match[2].length === 11) ? match[2] : null;
-}
-
-// Invidious APIを経由して規制スルーのストリームURLを取得する
-app.get('/api/stream-url', async (req, res) => {
-    const targetUrl = req.query.url;
-    if (!targetUrl) return res.status(400).json({ error: 'Missing url parameter' });
-
-    const videoId = getYouTubeId(targetUrl);
-    if (!videoId) return res.status(400).json({ error: 'Invalid YouTube URL' });
-
-    // 生存しているInvidiousインスタンスからデータを取得できるまでループ試行
-    for (const instance of INVIDIOUS_INSTANCES) {
-        try {
-            const apiUrl = `${instance}/api/v1/videos/${videoId}`;
-            
-            const data = await new Promise((resolve, reject) => {
-                https.get(apiUrl, { timeout: 3000 }, (apiRes) => {
-                    let body = '';
-                    apiRes.on('data', chunk => body += chunk);
-                    apiRes.on('end', () => {
-                        if (apiRes.statusCode === 200) resolve(JSON.parse(body));
-                        else reject(new Error(`Status ${apiRes.statusCode}`));
-                    });
-                }).on('error', reject);
-            });
-
-            // 最も扱いやすいフォーマット形式（video/mp4または組み合わせストリーム）を抽出
-            if (data && data.formatStreams && data.formatStreams.length > 0) {
-                // 画質が最適で、映像と音声が合体しているストリームURLを選択
-                const bestStream = data.formatStreams[data.formatStreams.length - 1];
-                
-                // クライアントが直接アクセス、またはプロキシ可能なストリームURLを返す
-                return res.json({ 
-                    streamUrl: bestStream.url,
-                    title: data.title
-                });
-            }
-        } catch (err) {
-            console.log(`Instance ${instance} failed, trying next...`);
-            // エラー時は次のインスタンスへ自動フォールバック
+// しあtubeの規制スルー機能付きコアHTMLをGitHubから動的に取得して配信するエンドポイント
+app.get('/siatube-core', (req, res) => {
+    const targetUrl = 'https://raw.githubusercontent.com/ajgpw/youtube/refs/heads/main/index.html.txt';
+    
+    https.get(targetUrl, (githubRes) => {
+        if (githubRes.statusCode !== 200) {
+            return res.status(500).send('しあtubeコアの取得に失敗しました。');
         }
-    }
-
-    res.status(500).json({ error: 'すべての回避サーバーが制限突破に失敗しました。時間をおいて試してください。' });
+        
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        githubRes.pipe(res);
+    }).on('error', (e) => {
+        console.error(e);
+        res.status(500).send('通信エラーが発生しました。');
+    });
 });
 
 app.get('/favicon.ico', (req, res) => res.status(204).end());
