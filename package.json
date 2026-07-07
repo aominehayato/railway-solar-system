@@ -7,11 +7,11 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
-    "vue": "^3.5.25",
-    "@distube/ytdl-core": "4.14.4",
-    "undici": "5.28.4"
-  },
+  "express": "^4.19.2",
+  "vue": "^3.5.25",
+  "@distube/ytdl-core": "latest",
+  "undici": "5.28.4"
+},
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.4",
     "vite": "^5.4.21"
