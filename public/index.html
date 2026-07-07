@@ -3,135 +3,179 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Real-time Video Stream Theater</title>
+    <title>独自規制回避プレイヤー (2D)</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; color: #fff; font-family: sans-serif; }
-        #info { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 8px; pointer-events: auto; max-width: 300px; z-index: 10; }
-        h1 { margin: 0 0 5px 0; font-size: 16px; }
-        #statusText { font-size: 11px; color: #5865F2; margin-bottom: 10px; word-break: break-all; }
-        .input-group { display: flex; gap: 5px; margin-top: 10px; }
-        input[type="text"] { flex: 1; background: #222; border: 1px solid #444; color: #fff; padding: 5px; border-radius: 4px; font-size: 12px; }
-        button { background: #5865F2; border: none; color: #fff; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
-        button:hover { background: #4752C4; }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #111;
+            color: #fff;
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        #container {
+            width: 90%;
+            max-width: 1000px;
+            background: #000;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+        }
+        h1 {
+            font-size: 20px;
+            margin-top: 0;
+            margin-bottom: 5px;
+            text-align: center;
+        }
+        #statusText {
+            font-size: 13px;
+            color: #5865F2;
+            text-align: center;
+            margin-bottom: 15px;
+            min-height: 18px;
+        }
+        .input-area {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        input[type="text"] {
+            flex: 1;
+            background: #222;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+        }
+        input[type="text"]:focus {
+            border-color: #5865F2;
+        }
+        button {
+            background: #5865F2;
+            border: none;
+            color: #fff;
+            padding: 0 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #4752C4;
+        }
+        .player-wrapper {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 アスペクト比 */
+            background: #050505;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            outline: none;
+        }
     </style>
-    <!-- Three.js & OrbitControls -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
-    <div id="info">
-        <h1>完全独自ビルド 3D規制回避シアター</h1>
-        <div id="statusText">動画URLを入力してください</div>
-        <div>
-            <label style="font-size: 12px; color: #ccc;">YouTube / Shorts URL:</label>
-            <div class="input-group">
-                <input type="text" id="videoUrl" placeholder="https://www.youtube.com/watch?v=...">
-                <button id="playBtn">解析して3D再生</button>
-            </div>
-        </div>
+
+<div id="container">
+    <h1>完全独自ビルド 2D規制回避シアター</h1>
+    <div id="statusText">YouTubeの動画URLまたはShortsのURLを入力してください</div>
+
+    <div class="input-area">
+        <input type="text" id="videoUrl" placeholder="https://www.youtube.com/watch?v=HqG-fKWkK5s">
+        <button id="playBtn">動画を解析して再生</button>
     </div>
 
-    <!-- 規制をバイパスした生の動画ストリームを自前で直接再生するビデオ要素 -->
-    <video id="videoElement" crossorigin="anonymous" playsinline style="display:none;"></video>
+    <div class="player-wrapper">
+        <!-- 規制スルーされた映像データを直接受け止めるビデオタグ（コントロールバー付き） -->
+        <video id="mainPlayer" controls autoplay playsinline crossorigin="anonymous"></video>
+    </div>
+</div>
 
-    <script>
-        // 1. 3D空間の基本セットアップ
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
+<script>
+    // しあtube系クローンが通信を確立するために利用している、CORS解放済みの安定したPiped/Invidious APIエンドポイントのリスト
+    const BYPASS_APIS = [
+        'https://pipedapi.kavin.rocks',
+        'https://api.piped.projectsegfau.lt',
+        'https://pipedapi.tokhmi.xyz',
+        'https://piped-api.garudalinux.org',
+        'https://invidious.asir.dev'
+    ];
 
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        camera.position.set(0, 0, 25);
-        controls.update();
+    // URLから動画IDを確実に抽出する関数
+    function extractVideoId(url) {
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
+        const match = url.match(regExp);
+        return (match && match[2].length === 11) ? match[2] : null;
+    }
 
-        // 2. 独自スクリーンのマッピング作成
-        const video = document.getElementById('videoElement');
-        const videoTexture = new THREE.VideoTexture(video);
-        videoTexture.minFilter = THREE.LinearFilter;
-        videoTexture.magFilter = THREE.LinearFilter;
+    document.getElementById('playBtn').addEventListener('click', async () => {
+        const url = document.getElementById('videoUrl').value;
+        if (!url) return alert('URLを入力してください');
 
-        const screenGeometry = new THREE.PlaneGeometry(32, 18);
-        const screenMaterial = new THREE.MeshBasicMaterial({ map: videoTexture, side: THREE.DoubleSide });
-        const screenMesh = new THREE.Mesh(screenGeometry, screenMaterial);
-        scene.add(screenMesh);
+        const videoId = extractVideoId(url);
+        if (!videoId) return alert('有効なYouTubeの動画IDを検出できませんでした。');
 
-        // しあtubeが裏側で利用している、制限・ボット追跡をスルーできるパブリックAPI群
-        const API_INSTANCES = [
-            'https://invidious.yewtu.be',
-            'https://inv.tux.it',
-            'https://invidious.nerdvpn.de',
-            'https://invidious.flokinet.to',
-            'https://inv.riverside.rocks'
-        ];
+        const status = document.getElementById('statusText');
+        const player = document.getElementById('mainPlayer');
+        
+        status.innerText = '制限回避ネットワークに接続を開始しています...';
 
-        // URLからYouTubeの動画IDだけを引き抜く関数
-        function extractVideoId(url) {
-            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
-            const match = url.match(regExp);
-            return (match && match[2].length === 11) ? match[2] : null;
-        }
+        // 外部のCORS解放済みAPI群を順にフェッチして動画ストリームを奪取する
+        for (const apiBase of BYPASS_APIS) {
+            try {
+                status.innerText = `回避ルートを検証中: ${apiBase.replace('https://', '')}`;
+                
+                // Piped APIのエンドポイント構造を利用して動画の生データを要求
+                const apiUrl = `${apiBase}/streams/${videoId}`;
+                const response = await fetch(apiUrl, { signal: AbortSignal.timeout(5000) });
+                
+                if (!response.ok) continue;
 
-        // 3. しあtubeクローンのコアロジック：ブラウザから直接API経由でデータをハックする
-        document.getElementById('playBtn').addEventListener('click', async () => {
-            const url = document.getElementById('videoUrl').value;
-            if (!url) return alert('URLを入力してください');
+                const data = await response.json();
+                
+                // 映像と音声が合体しているビデオストリームを走査
+                if (data && data.videoStreams && data.videoStreams.length > 0) {
+                    // 最も標準的で扱いやすい高品質なmp4/hlsストリームを選択
+                    const mp4Streams = data.videoStreams.filter(s => s.videoOnly === false);
+                    const targetStream = mp4Streams.length > 0 ? mp4Streams[0] : data.videoStreams[0];
 
-            const videoId = extractVideoId(url);
-            if (!videoId) return alert('有効なYouTubeのURLが見つかりませんでした');
-
-            const status = document.getElementById('statusText');
-            status.innerText = '回避ネットワークに接続中...';
-
-            // 利用可能なバイパスAPIを順に探索して動画データを直接もぎ取る
-            for (const instance of API_INSTANCES) {
-                try {
-                    status.innerText = `プロキシ探索中: ${instance.replace('https://', '')}`;
-                    
-                    // ブラウザからInvidious APIへ直接フェッチ（ここがしあtubeの核心）
-                    const response = await fetch(`${instance}/api/v1/videos/${videoId}`, { signal: AbortSignal.timeout(4000) });
-                    if (!response.ok) continue;
-
-                    const data = await response.json();
-                    if (data && data.formatStreams && data.formatStreams.length > 0) {
-                        // 映像＋音声が揃った中で、最も品質が良いmp4ストリームデータを直接選択
-                        const bestStream = data.formatStreams[data.formatStreams.length - 1];
+                    if (targetStream && targetStream.url) {
+                        status.style.color = '#43b581';
+                        status.innerText = `再生中: ${data.title || '制限バイパス動画'}`;
                         
-                        status.innerText = `再生中: ${data.title}`;
-                        
-                        // 抽出した生ストリーム動画を、自前のvideoタグへ直接注入して再生
-                        video.src = bestStream.url;
-                        video.load();
-                        
-                        video.play().catch(err => {
-                            console.error("Playback restriction:", err);
-                            alert("ブラウザの自動再生制限を検知しました。画面をクリックしてからもう一度再生ボタンを押してください。");
+                        // 3Dではなく、通常のvideoタグのsrcへ生ストリームを流し込む
+                        player.src = targetStream.url;
+                        player.load();
+                        player.play().catch(e => {
+                            console.log("Autoplay blocked, waiting for user click.");
                         });
-                        return; // 成功したためループを抜ける
+                        return; // 成功したため処理を終了
                     }
-                } catch (e) {
-                    console.warn(`Instance failed: ${instance}`, e);
-                    // タイムアウトやCORSエラー時は自動で次の回避サーバーへ切り替え
                 }
+            } catch (e) {
+                console.warn(`Bypass endpoint failed: ${apiBase}`, e);
+                // 通信エラーやタイムアウトが発生した場合は、次のAPIへ自動的にフォールバック
             }
-
-            status.innerText = 'すべての回避経路がブロックされました。別の動画URLで試してください。';
-        });
-
-        // 4. アニメーションレンダリング
-        function animate() {
-            requestAnimationFrame(animate);
-            controls.update();
-            renderer.render(scene, camera);
         }
-        animate();
 
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-    </script>
+        status.style.color = '#f04747';
+        status.innerText = 'すべての回避ルートが規制されました。別のURLで再度お試しください。';
+    });
+</script>
+
 </body>
 </html>
