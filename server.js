@@ -5,22 +5,22 @@ const app = express();
 const server = createServer(app);
 const PORT = process.env.PORT || 8080;
 
-// API投稿処理
 async function createPadletPost() {
-    const BOARD_ID = '266991839'; // あなたのボードID
-    const SECTION_ID = '377956413'; // あなたのセクションID
+    const BOARD_ID = '266991839'; 
+    const SECTION_ID = '377956413';
+    
+    // APIキーそのものだけでなく、Bearer認証スキームを試す
     const API_KEY = process.env.PADLET_API_KEY;
 
     const url = `https://api.padlet.dev/v1/boards/${BOARD_ID}/posts`;
 
-    // 公式仕様に基づくリクエストボディ
     const payload = {
         "data": {
             "type": "post",
             "attributes": {
                 "content": {
                     "subject": "自動投稿",
-                    "body": "API経由でテスト投稿中"
+                    "body": "Bearer認証でのテスト投稿"
                 },
                 "color": "blue"
             },
@@ -36,9 +36,10 @@ async function createPadletPost() {
         const response = await fetch(url, {
             method: 'POST',
             headers: {
-                'X-API-KEY': API_KEY, // 公式指定の認証ヘッダー
-                'Content-Type': 'application/vnd.api+json', // 公式指定のContent-Type
-                'Accept': 'application/vnd.api+json'       // 公式指定のAccept
+                // X-API-KEY ではなく、Bearer 認証形式を試します
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/vnd.api+json',
+                'Accept': 'application/vnd.api+json'
             },
             body: JSON.stringify(payload)
         });
@@ -55,7 +56,6 @@ async function createPadletPost() {
     }
 }
 
-// 起動時に1回だけ実行
 createPadletPost();
 
 app.get('/', (req, res) => res.send('Bot is running'));
