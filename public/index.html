@@ -6,84 +6,131 @@
     <title>3D Real-time Video Stream Theater</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; color: #fff; font-family: sans-serif; }
-        #info { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 8px; pointer-events: auto; max-width: 300px; z-index: 100; }
+        #info { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 8px; pointer-events: auto; max-width: 300px; z-index: 10; }
         h1 { margin: 0 0 5px 0; font-size: 16px; }
-        p { margin: 0; font-size: 12px; color: #ccc; }
-        
-        /* 3D空間内に配置するしあtubeコンテナのスタイル設定 */
-        .theater-container {
-            width: 1280px;
-            height: 720px;
-            background: #111;
-            border: 2px solid #333;
-            box-shadow: 0 0 30px rgba(88, 101, 242, 0.3);
-            pointer-events: auto; /* 3D空間内での操作を有効化 */
-        }
-        .theater-container iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
+        #statusText { font-size: 11px; color: #5865F2; margin-bottom: 10px; word-break: break-all; }
+        .input-group { display: flex; gap: 5px; margin-top: 10px; }
+        input[type="text"] { flex: 1; background: #222; border: 1px solid #444; color: #fff; padding: 5px; border-radius: 4px; font-size: 12px; }
+        button { background: #5865F2; border: none; color: #fff; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
+        button:hover { background: #4752C4; }
     </style>
-    <!-- Three.js ＆ 立体制御ライブラリ -->
+    <!-- Three.js & OrbitControls -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <!-- HTML要素（しあtube）をWebGL空間に完全同期させるCSS3DRenderer -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS3DRenderer.js"></script>
 </head>
 <body>
     <div id="info">
-        <h1>独自3D規制スルーシアター</h1>
-        <p>しあtubeのバイパスシステムを3D空間へ完全統合しました。画面内の検索窓から自由に動画を再生・視聴できます。</p>
+        <h1>完全独自ビルド 3D規制回避シアター</h1>
+        <div id="statusText">動画URLを入力してください</div>
+        <div>
+            <label style="font-size: 12px; color: #ccc;">YouTube / Shorts URL:</label>
+            <div class="input-group">
+                <input type="text" id="videoUrl" placeholder="https://www.youtube.com/watch?v=...">
+                <button id="playBtn">解析して3D再生</button>
+            </div>
+        </div>
     </div>
 
+    <!-- 規制をバイパスした生の動画ストリームを自前で直接再生するビデオ要素 -->
+    <video id="videoElement" crossorigin="anonymous" playsinline style="display:none;"></video>
+
     <script>
-        // 1. 3D空間とカメラ、CSS3Dレンダラーのセットアップ
+        // 1. 3D空間の基本セットアップ
         const scene = new THREE.Scene();
-        
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
-        camera.position.set(0, 0, 800);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
 
-        const rendererCSS = new THREE.CSS3DRenderer();
-        rendererCSS.setSize(window.innerWidth, window.innerHeight);
-        rendererCSS.domElement.style.position = 'absolute';
-        rendererCSS.domElement.style.top = '0';
-        document.body.appendChild(rendererCSS.domElement);
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        camera.position.set(0, 0, 25);
+        controls.update();
 
-        // マウスやトラックパッドでの視点操作
-        const controls = new THREE.OrbitControls(camera, rendererCSS.domElement);
-        controls.enableDamping = true;
-        controls.dampingFactor = 0.05;
+        // 2. 独自スクリーンのマッピング作成
+        const video = document.getElementById('videoElement');
+        const videoTexture = new THREE.VideoTexture(video);
+        videoTexture.minFilter = THREE.LinearFilter;
+        videoTexture.magFilter = THREE.LinearFilter;
 
-        // 2. しあtubeの仕組みを持ったHTMLを埋め込むコンテナを作成
-        const theaterContainer = document.createElement('div');
-        theaterContainer.className = 'theater-container';
-        
-        // しあtube（AJGPW版）のバイパスシステムURLをそのままインラインフレームとして読み込み
-        const iframe = document.createElement('iframe');
-        iframe.src = 'https://raw.githack.com/ajgpw/youtube/main/index.html.txt';
-        iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
-        iframe.allowFullscreen = true;
-        theaterContainer.appendChild(iframe);
+        const screenGeometry = new THREE.PlaneGeometry(32, 18);
+        const screenMaterial = new THREE.MeshBasicMaterial({ map: videoTexture, side: THREE.DoubleSide });
+        const screenMesh = new THREE.Mesh(screenGeometry, screenMaterial);
+        scene.add(screenMesh);
 
-        // 3. CSS3Dオブジェクトとして3D空間のセンターに配置
-        const objectCSS = new THREE.CSS3DObject(theaterContainer);
-        objectCSS.position.set(0, 0, 0);
-        scene.add(objectCSS);
+        // しあtubeが裏側で利用している、制限・ボット追跡をスルーできるパブリックAPI群
+        const API_INSTANCES = [
+            'https://invidious.yewtu.be',
+            'https://inv.tux.it',
+            'https://invidious.nerdvpn.de',
+            'https://invidious.flokinet.to',
+            'https://inv.riverside.rocks'
+        ];
 
-        // 4. アニメーションループ
+        // URLからYouTubeの動画IDだけを引き抜く関数
+        function extractVideoId(url) {
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[2].length === 11) ? match[2] : null;
+        }
+
+        // 3. しあtubeクローンのコアロジック：ブラウザから直接API経由でデータをハックする
+        document.getElementById('playBtn').addEventListener('click', async () => {
+            const url = document.getElementById('videoUrl').value;
+            if (!url) return alert('URLを入力してください');
+
+            const videoId = extractVideoId(url);
+            if (!videoId) return alert('有効なYouTubeのURLが見つかりませんでした');
+
+            const status = document.getElementById('statusText');
+            status.innerText = '回避ネットワークに接続中...';
+
+            // 利用可能なバイパスAPIを順に探索して動画データを直接もぎ取る
+            for (const instance of API_INSTANCES) {
+                try {
+                    status.innerText = `プロキシ探索中: ${instance.replace('https://', '')}`;
+                    
+                    // ブラウザからInvidious APIへ直接フェッチ（ここがしあtubeの核心）
+                    const response = await fetch(`${instance}/api/v1/videos/${videoId}`, { signal: AbortSignal.timeout(4000) });
+                    if (!response.ok) continue;
+
+                    const data = await response.json();
+                    if (data && data.formatStreams && data.formatStreams.length > 0) {
+                        // 映像＋音声が揃った中で、最も品質が良いmp4ストリームデータを直接選択
+                        const bestStream = data.formatStreams[data.formatStreams.length - 1];
+                        
+                        status.innerText = `再生中: ${data.title}`;
+                        
+                        // 抽出した生ストリーム動画を、自前のvideoタグへ直接注入して再生
+                        video.src = bestStream.url;
+                        video.load();
+                        
+                        video.play().catch(err => {
+                            console.error("Playback restriction:", err);
+                            alert("ブラウザの自動再生制限を検知しました。画面をクリックしてからもう一度再生ボタンを押してください。");
+                        });
+                        return; // 成功したためループを抜ける
+                    }
+                } catch (e) {
+                    console.warn(`Instance failed: ${instance}`, e);
+                    // タイムアウトやCORSエラー時は自動で次の回避サーバーへ切り替え
+                }
+            }
+
+            status.innerText = 'すべての回避経路がブロックされました。別の動画URLで試してください。';
+        });
+
+        // 4. アニメーションレンダリング
         function animate() {
             requestAnimationFrame(animate);
             controls.update();
-            rendererCSS.render(scene, camera);
+            renderer.render(scene, camera);
         }
         animate();
 
-        // 画面リサイズへの自動追従設定
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
-            rendererCSS.setSize(window.innerWidth, window.innerHeight);
+            renderer.setSize(window.innerWidth, window.innerHeight);
         });
     </script>
 </body>
