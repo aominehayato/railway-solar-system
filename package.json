@@ -1,17 +1,16 @@
 {
-  "name": "client",
-  "version": "1.5.4",
+  "name": "sia-tube",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
     "build": "vite build",
     "start": "node server.js"
   },
   "dependencies": {
-    "@distube/ytdl-core": "^4.16.12",
     "express": "^4.19.2",
     "vue": "^3.5.25",
-    "vue-router": "^4.6.3"
+    "@distube/ytdl-core": "4.14.4",
+    "undici": "5.28.4"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.4",
