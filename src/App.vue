@@ -11,15 +11,18 @@
 import { ref } from 'vue';
 const url = ref(''), msg = ref(''), vid = ref(null);
 const play = async () => {
-  msg.value = '接続中...';
+  msg.value = '接続試行中...';
   const id = url.value.split(/v=|shorts\//)[1]?.substring(0, 11);
-  const res = await fetch('/api/bypass-stream?id=' + id);
-  const data = await res.json();
-  if (data.success) {
-    vid.value.src = data.streamUrl;
-    msg.value = '再生中: ' + data.title;
-  } else {
-    msg.value = 'エラー: サーバーがブロックされました。';
-  }
+  if (!id) { msg.value = 'URLが不正です'; return; }
+  try {
+    const res = await fetch('/api/bypass-stream?id=' + id);
+    const data = await res.json();
+    if (data.success) {
+      vid.value.src = data.streamUrl;
+      msg.value = '再生中: ' + data.title;
+    } else {
+      msg.value = '取得失敗: 外部サーバーが拒否されました。';
+    }
+  } catch (e) { msg.value = '接続エラー'; }
 };
 </script>
