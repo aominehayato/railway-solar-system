@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Real-time Solar System</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; color: #fff; font-family: sans-serif; }
+        #info { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 5px; pointer-events: none; }
+        h1 { margin: 0 0 5px 0; font-size: 16px; }
+        p { margin: 0; font-size: 12px; color: #aaa; }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+    <div id="info">
+        <h1>リアルタイム 3D太陽系シミュレーター</h1>
+        <p id="datetime">データ受信中...</p>
+    </div>
+
+    <script>
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        camera.position.set(0, 30, 50);
+        controls.update();
+
+        const ambientLight = new THREE.AmbientLight(0x333333);
+        scene.add(ambientLight);
+        const sunLight = new THREE.PointLight(0xffffff, 2, 300);
+        scene.add(sunLight);
+
+        const sunGeometry = new THREE.SphereGeometry(3, 32, 32);
+        const sunMaterial = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+        const sun = new THREE.Mesh(sunGeometry, sunMaterial);
+        scene.add(sun);
+
+        const planetSettings = {
+            Mercury: { color: 0xaaaaaa, size: 0.4 },
+            Venus:   { color: 0xe3bb76, size: 0.7 },
+            Earth:   { color: 0x2277ff, size: 0.8 },
+            Mars:    { color: 0xcc4400, size: 0.5 },
+            Jupiter: { color: 0xd4a373, size: 1.8 },
+            Saturn:  { color: 0xf4e2bb, size: 1.5 },
+            Uranus:  { color: 0x70d6ff, size: 1.2 },
+            Neptune: { color: 0x3a86ff, size: 1.1 }
+        };
+
+        const planetMeshes = {};
+
+        Object.keys(planetSettings).forEach(name => {
+            const config = planetSettings[name];
+            const geometry = new THREE.SphereGeometry(config.size, 32, 32);
+            const material = new THREE.MeshStandardMaterial({ color: config.color, roughness: 0.5 });
+            const mesh = new THREE.Mesh(geometry, material);
+            scene.add(mesh);
+            planetMeshes[name] = mesh;
+        });
+
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(`${protocol}//${window.location.host}`);
+
+        ws.onmessage = (event) => {
+            const data = JSON.parse(event.data);
+            document.getElementById('datetime').innerText = `現在天体時刻: ${new Date(data.time).toLocaleString()}`;
+
+            const scale = 15;
+            Object.keys(data.planets).forEach(name => {
+                const pos = data.planets[name];
+                if (planetMeshes[name]) {
+                    planetMeshes[name].position.set(pos.x * scale, pos.z * scale, pos.y * scale);
+                }
+            });
+        };
+
+        function animate() {
+            requestAnimationFrame(animate);
+            sun.rotation.y += 0.002;
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
