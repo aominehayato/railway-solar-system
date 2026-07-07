@@ -6,9 +6,9 @@ const server = createServer(app);
 const PORT = process.env.PORT || 8080;
 
 async function createPadletPost() {
-    // 提示された正しいボードIDを使用
+    // 1. ボードID: APIのドキュメント通り、プレフィックスなしのハッシュIDを指定
     const BOARD_ID = 'wy32bauth9n4npi1'; 
-    // セクションIDは提示されたものを使用（必要に応じて空にするか指定）
+    // 2. セクションID: APIが要求している形式に合わせて、sec_ なしのハッシュIDを指定
     const SECTION_ID = 'J7pj4ol5wLdX2KMG'; 
     
     const API_KEY = process.env.PADLET_API_KEY;
@@ -20,13 +20,16 @@ async function createPadletPost() {
             "attributes": {
                 "content": {
                     "subject": "自動投稿テスト",
-                    "body": "APIで作成!"
+                    "body": "API経由で投稿を作成"
                 },
                 "color": "blue"
             },
             "relationships": {
                 "section": {
-                    "data": { "id": SECTION_ID, "type": "section" }
+                    "data": { 
+                        "id": SECTION_ID,
+                        "type": "section" // typeも明示的に指定
+                    }
                 }
             }
         }
@@ -36,7 +39,7 @@ async function createPadletPost() {
         const response = await fetch(url, {
             method: 'POST',
             headers: {
-                'X-Api-Key': API_KEY, // 大文字小文字の区別に注意
+                'X-API-KEY': API_KEY,
                 'Content-Type': 'application/vnd.api+json',
                 'Accept': 'application/vnd.api+json'
             },
