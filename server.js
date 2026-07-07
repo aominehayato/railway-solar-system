@@ -12,7 +12,8 @@ const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
-const PORT = process.env.PORT || 80;
+// Railwayの割り当てポートを最優先で取得
+const PORT = process.env.PORT || 8080;
 
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -47,7 +48,6 @@ function getPlanetPositions() {
 }
 
 wss.on('connection', (ws) => {
-    console.log('Client connected');
     ws.send(JSON.stringify(getPlanetPositions()));
 
     const interval = setInterval(() => {
@@ -58,10 +58,10 @@ wss.on('connection', (ws) => {
 
     ws.on('close', () => {
         clearInterval(interval);
-        console.log('Client disconnected');
     });
 });
 
-server.listen(PORT, () => {
+// ポートを指定してサーバーを起動
+server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running on port ${PORT}`);
 });
