@@ -7,8 +7,9 @@
     "start": "node server.js"
   },
   "dependencies": {
+    "@distube/ytdl-core": "^4.16.12",
+    "astronomy-engine": "^2.1.19",
     "express": "^4.19.2",
-    "ws": "^8.18.0",
-    "astronomy-engine": "^2.1.19"
+    "ws": "^8.18.0"
   }
 }
