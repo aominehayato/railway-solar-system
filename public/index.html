@@ -29,7 +29,7 @@
         </div>
     </div>
 
-    <!-- 自前のサーバーから配信を受けるためのVideo要素 -->
+    <!-- 映像処理用のVideo要素（CORS属性を明示的に指定） -->
     <video id="videoElement" crossorigin="anonymous" playsinline style="display:none;"></video>
 
     <script>
@@ -46,9 +46,12 @@
 
         // 2. 独自スクリーンの作成
         const video = document.getElementById('videoElement');
+        
+        // テクスチャの設定
         const videoTexture = new THREE.VideoTexture(video);
         videoTexture.minFilter = THREE.LinearFilter;
         videoTexture.magFilter = THREE.LinearFilter;
+        videoTexture.format = THREE.RGBFormat;
 
         // 16:9 の巨大なシアタースクリーンを生成
         const screenGeometry = new THREE.PlaneGeometry(32, 18);
@@ -62,13 +65,14 @@
             const url = document.getElementById('videoUrl').value;
             if (!url) return alert('動画ファイルのURLを入力してください');
 
-            // 独自のストリーミングプロキシAPIを経由させてCORSを完全回避
-            video.src = `/api/stream?url=${encodeURIComponent(url)}`;
+            // サーバーを介さずブラウザで直接再生ソースとして設定
+            video.src = url;
+            video.crossOrigin = "anonymous"; // 外部ドメインのデータをWebGLテクスチャに許可させる設定
             video.load();
             
             video.play().catch(err => {
                 console.error("Playback failed:", err);
-                alert("ストリーミングの開始に失敗しました。URLが正しいか、または動画が壊れていないか確認してください。");
+                alert("再生の開始に失敗しました。URLが正しいか、またはブラウザの再生許可（画面クリック等）を確認してください。");
             });
         });
 
