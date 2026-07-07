@@ -69,10 +69,18 @@ export default {
 
       loading.value = true;
       isError.value = false;
-      statusMessage.value = '制限回避ルートを確保しています...';
+      statusMessage.value = 'サーバーサイドで制限をバイパス中...';
 
       try {
+        // 重要: 外部APIを直接叩かず、CORSを回避するために自作サーバーのプロキシAPIを呼び出す
+        // 開発環境でも本番環境でも、ドメイン無しの相対パスでリクエストを中継させます
         const response = await fetch(`/api/bypass-stream?id=${id}`);
+        
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error || `HTTPエラーが発生しました (Status: ${response.status})`);
+        }
+
         const data = await response.json();
 
         if (data.success && data.streamUrl) {
@@ -82,15 +90,16 @@ export default {
             videoPlayer.value.src = data.streamUrl;
             videoPlayer.value.load();
             videoPlayer.value.play().catch(() => {
-              statusMessage.value = `再生準備完了: ${data.title} (再生ボタンを押してください)`;
+              statusMessage.value = `再生準備完了: ${data.title} (プレイヤーの再生ボタンを押してください)`;
             });
           }
         } else {
-          throw new Error(data.error || 'ストリームの取得に失敗しました。');
+          throw new Error(data.error || '動画ストリームURLの解析に失敗しました。');
         }
       } catch (err) {
         isError.value = true;
-        statusMessage.value = err.message || '通信エラーが発生しました。';
+        statusMessage.value = err.message || '通信エラーまたはサーバーエラーが発生しました。';
+        console.error('[App Error]', err);
       } finally {
         loading.value = false;
       }

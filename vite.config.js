@@ -19,7 +19,7 @@ export default defineConfig({
     emptyOutDir: true
   },
   server: {
-    allowedHosts: ["tpj4gl-5173.csb.app"],
+    allowedHosts: ["tpj4gl-5173.csb.app", "railway-solar-system-production.up.railway.app"],
     proxy: {
       "/api": {
         target: "http://localhost:8080",
