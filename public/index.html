@@ -6,16 +6,31 @@
     <title>3D Real-time Video Stream Theater</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; color: #fff; font-family: sans-serif; }
-        #info { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 8px; pointer-events: auto; max-width: 300px; z-index: 10; }
+        #info { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 8px; pointer-events: auto; max-width: 300px; z-index: 100; }
         h1 { margin: 0 0 10px 0; font-size: 16px; }
         .input-group { display: flex; gap: 5px; margin-top: 10px; }
         input[type="text"] { flex: 1; background: #222; border: 1px solid #444; color: #fff; padding: 5px; border-radius: 4px; font-size: 12px; }
         button { background: #5865F2; border: none; color: #fff; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
         button:hover { background: #4752C4; }
+        
+        /* YouTubeプレイヤー自体を真の動画データのように見せるためのマスク設定 */
+        .video-container {
+            width: 1280px;
+            height: 720px;
+            background: #000;
+            pointer-events: none; /* 3D空間でのカメラ操作を邪魔しない */
+        }
+        .video-container iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
     </style>
-    <!-- Three.js & OrbitControls -->
+    <!-- Three.js ＆ カメラ操作用ライブラリ -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- HTML要素を3D空間にシームレスに配置するCSS3DRenderer -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS3DRenderer.js"></script>
     <!-- YouTube IFrame Player API -->
     <script src="https://www.youtube.com/iframe_api"></script>
 </head>
@@ -31,53 +46,46 @@
         </div>
     </div>
 
-    <!-- YouTube APIが裏で映像を読み込むための隠しコンテナ（画面上には見えません） -->
-    <div style="position: absolute; top: -9999px; left: -9999px;">
-        <div id="ytPlayer"></div>
-    </div>
-
     <script>
-        // 1. 3D空間の基本設定（天体オブジェクトはすべて排除）
+        // 1. 3D空間と2つのレンダラーのセットアップ
         const scene = new THREE.Scene();
+        
+        // 通常のWebGL空間（背景やエフェクト用）
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
+        camera.position.set(0, 0, 800);
 
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
-        camera.position.set(0, 0, 30);
+        // HTML要素を立体配置するCSS3Dレンダラー
+        const rendererCSS = new THREE.CSS3DRenderer();
+        rendererCSS.setSize(window.innerWidth, window.innerHeight);
+        rendererCSS.domElement.style.position = 'absolute';
+        rendererCSS.domElement.style.top = '0';
+        document.body.appendChild(rendererCSS.domElement);
+
+        // カメラ操作設定
+        const controls = new THREE.OrbitControls(camera, rendererCSS.domElement);
         controls.update();
 
-        // 環境光のみ配置
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
-        scene.add(ambientLight);
+        // 2. 独自配信用スクリーンのHTML要素を3Dオブジェクト化
+        const videoContainer = document.createElement('div');
+        videoContainer.className = 'video-container';
+        
+        // 中にYouTubeの埋め込み用ターゲットを配置
+        const ytDiv = document.createElement('div');
+        ytDiv.id = 'ytPlayer';
+        videoContainer.appendChild(ytDiv);
 
-        // 2. 3Dシネマプレーン（スクリーン）の作成
-        // 映像の受け皿となるCanvasを生成
-        const videoCanvas = document.createElement('canvas');
-        videoCanvas.width = 1280;
-        videoCanvas.height = 720;
-        const videoContext = videoCanvas.getContext('2d');
+        // CSS3Dオブジェクトとしてシーンに追加
+        const objectCSS = new THREE.CSS3DObject(videoContainer);
+        objectCSS.position.set(0, 0, 0);
+        scene.add(objectCSS);
 
-        // 最初は真っ黒な画面にしておく
-        videoContext.fillStyle = '#000000';
-        videoContext.fillRect(0, 0, videoCanvas.width, videoCanvas.height);
-
-        const videoTexture = new THREE.CanvasTexture(videoCanvas);
-        const screenGeometry = new THREE.PlaneGeometry(32, 18); // 16:9比率
-        const screenMaterial = new THREE.MeshBasicMaterial({ map: videoTexture, side: THREE.DoubleSide });
-        const screenMesh = new THREE.Mesh(screenGeometry, screenMaterial);
-        screenMesh.position.set(0, 0, 0);
-        scene.add(screenMesh);
-
-        // 3. YouTube IFrame API の制御設定
+        // 3. YouTube IFrame API の制御ロジック
         let player;
+        
         function onYouTubeIframeAPIReady() {
-            // グローバルにアクセスできるように確保
             window.ytPlayerReady = true;
         }
 
-        // URLからVideo IDを抽出する関数（通常URL、Shorts、モバイルURL対応）
         function extractVideoId(url) {
             const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
             const match = url.match(regExp);
@@ -100,11 +108,13 @@
                     videoId: videoId,
                     playerVars: {
                         'autoplay': 1,
-                        'controls': 0,
+                        'controls': 0,          // 既存のシークバーやコントロールを完全に非表示
                         'rel': 0,
                         'showinfo': 0,
-                        'modestbranding': 1,
-                        'playsinline': 1
+                        'modestbranding': 1,    // YouTubeロゴを最小限にする
+                        'playsinline': 1,
+                        'iv_load_policy': 3,
+                        'cc_load_policy': 0
                     },
                     events: {
                         'onReady': (event) => {
@@ -115,37 +125,19 @@
             }
         });
 
-        // 4. アニメーションループ（裏のYouTube動画iframeからCanvasへ毎フレーム高速転送）
+        // 4. アニメーションループ
         function animate() {
             requestAnimationFrame(animate);
-
-            // YouTubeの動画要素を取得してCanvasに描画（独自テクスチャ化）
-            const iframe = document.querySelector('#ytPlayer');
-            if (iframe && player && typeof player.getPlayerState === 'function' && player.getPlayerState() === 1) {
-                // iframeの映像ソースをCanvasにキャプチャ転送
-                // ※ブラウザのセキュリティ制限(CORS)により直接描画できない場合は、API経由で同期
-                // 代替として、テクスチャの更新を明示的に通知
-                videoTexture.needsUpdate = true;
-            }
-
-            // Canvasの内容を元にテクスチャを常に最新化
-            // YouTube IFrameを直接テクスチャにするためのフォールバック対応
-            const ytHtmlElement = player && player.getIframe();
-            if (ytHtmlElement) {
-                // 通常のIFrameプレイヤーをWebGL空間に同期させて見せる手法にスイッチ
-                // 本格的なピクセル同期のため、needsUpdateをトリガー
-                videoTexture.needsUpdate = true;
-            }
-
             controls.update();
-            renderer.render(scene, camera);
+            rendererCSS.render(scene, camera);
         }
         animate();
 
+        // 画面リサイズ対応
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
+            rendererCSS.setSize(window.innerWidth, window.innerHeight);
         });
     </script>
 </body>
