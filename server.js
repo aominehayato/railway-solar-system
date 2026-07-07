@@ -8,8 +8,6 @@ const PORT = process.env.PORT || 8080;
 async function createPadletPost() {
     const BOARD_ID = 'wy32bauth9n4npi1'; 
     const SECTION_ID = 'sec_J7pj4ol5wLdX2KMG';
-    
-    // APIキーの読み込み
     const API_KEY = process.env.PADLET_API_KEY;
     const url = `https://api.padlet.dev/v1/boards/${BOARD_ID}/posts`;
 
@@ -19,7 +17,7 @@ async function createPadletPost() {
             "attributes": {
                 "content": {
                     "subject": "自動投稿テスト",
-                    "body": "ブラウザ模倣モードで投稿"
+                    "body": "ブラウザ通信を完全に模倣"
                 },
                 "color": "blue"
             },
@@ -38,10 +36,12 @@ async function createPadletPost() {
                 'X-API-KEY': API_KEY,
                 'Content-Type': 'application/vnd.api+json',
                 'Accept': 'application/vnd.api+json',
-                // 重要: ブラウザからのアクセスに見せるためのヘッダー
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-                'Origin': 'https://padlet.com',
-                'Referer': `https://padlet.com/corkdowryashen/board_${BOARD_ID}`
+                // ブラウザコンソールと同じヘッダーを設定
+                'Referer': 'https://padlet.com/',
+                'Accept-Language': 'ja,en;q=0.9,en-GB;q=0.8,en-US;q=0.7',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache',
+                'Prefer': 'safe'
             },
             body: JSON.stringify(payload)
         });
