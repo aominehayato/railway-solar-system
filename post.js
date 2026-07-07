@@ -6,9 +6,9 @@ const server = createServer(app);
 const PORT = process.env.PORT || 8080;
 
 async function createPadletPost() {
-    // プレフィックスを付けた形式でURLを構築します
-    const BOARD_ID = 'board_wy32bauth9n4npi1'; 
-    const SECTION_ID = 'sec_J7pj4ol5wLdX2KMG';
+    // データから取得した数値IDを使用します
+    const BOARD_ID = '266991839'; 
+    const SECTION_ID = '377956413'; // データから取得した数値のセクションID
     
     const API_KEY = process.env.PADLET_API_KEY;
     const url = `https://api.padlet.dev/v1/boards/${BOARD_ID}/posts`;
@@ -19,7 +19,7 @@ async function createPadletPost() {
             "attributes": {
                 "content": {
                     "subject": "自動投稿テスト",
-                    "body": "プレフィックス付きIDでの投稿"
+                    "body": "数値IDを使用して投稿"
                 },
                 "color": "blue"
             },
