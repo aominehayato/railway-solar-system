@@ -8,17 +8,16 @@
         body { margin: 0; overflow: hidden; background-color: #000; color: #fff; font-family: sans-serif; }
         #info { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 8px; pointer-events: auto; max-width: 300px; z-index: 100; }
         h1 { margin: 0 0 5px 0; font-size: 16px; }
-        p { margin: 0; font-size: 11px; color: #ccc; line-height: 1.4; }
-
-        /* 3D空間に配置するしあtube専用コンテナ */
+        p { margin: 0; font-size: 12px; color: #ccc; }
+        
+        /* 3D空間内に配置するしあtubeコンテナのスタイル設定 */
         .theater-container {
             width: 1280px;
             height: 720px;
-            background: #000;
-            border: 2px solid #5865F2;
-            box-shadow: 0 0 30px rgba(88, 101, 242, 0.5);
-            border-radius: 12px;
-            overflow: hidden;
+            background: #111;
+            border: 2px solid #333;
+            box-shadow: 0 0 30px rgba(88, 101, 242, 0.3);
+            pointer-events: auto; /* 3D空間内での操作を有効化 */
         }
         .theater-container iframe {
             width: 100%;
@@ -26,23 +25,24 @@
             border: none;
         }
     </style>
-    <!-- Three.js ＆ 立体操作・HTML要素3D配置用ライブラリ -->
+    <!-- Three.js ＆ 立体制御ライブラリ -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- HTML要素（しあtube）をWebGL空間に完全同期させるCSS3DRenderer -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS3DRenderer.js"></script>
 </head>
 <body>
     <div id="info">
-        <h1>3D 規制解除シアター</h1>
-        <p>3D空間内に「しあtube」のコアシステムを完全統合しました。学校のブロックやYouTubeの制限をすべてスルーして、画面内の検索や再生を自由に行えます。</p>
-        <p style="margin-top: 5px; color: #5865F2;">※ドラッグでカメラ回転、ホイールでズーム</p>
+        <h1>独自3D規制スルーシアター</h1>
+        <p>しあtubeのバイパスシステムを3D空間へ完全統合しました。画面内の検索窓から自由に動画を再生・視聴できます。</p>
     </div>
 
     <script>
-        // 1. 3D空間とCSS3Dレンダラーの初期化
+        // 1. 3D空間とカメラ、CSS3Dレンダラーのセットアップ
         const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 5000);
-        camera.position.set(0, 0, 1000);
+        
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+        camera.position.set(0, 0, 800);
 
         const rendererCSS = new THREE.CSS3DRenderer();
         rendererCSS.setSize(window.innerWidth, window.innerHeight);
@@ -50,29 +50,28 @@
         rendererCSS.domElement.style.top = '0';
         document.body.appendChild(rendererCSS.domElement);
 
+        // マウスやトラックパッドでの視点操作
         const controls = new THREE.OrbitControls(camera, rendererCSS.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
 
-        // 2. しあtubeを埋め込んだDOM要素を作成して3Dオブジェクト化
-        const container = document.createElement('div');
-        container.className = 'theater-container';
-
+        // 2. しあtubeの仕組みを持ったHTMLを埋め込むコンテナを作成
+        const theaterContainer = document.createElement('div');
+        theaterContainer.className = 'theater-container';
+        
+        // しあtube（AJGPW版）のバイパスシステムURLをそのままインラインフレームとして読み込み
         const iframe = document.createElement('iframe');
-        // 自分のサーバーから中継されるしあtubeのコアシステムを読み込む
-        iframe.src = '/siatube-core';
-        iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
+        iframe.src = 'https://raw.githack.com/ajgpw/youtube/main/index.html.txt';
+        iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
         iframe.allowFullscreen = true;
-        container.appendChild(iframe);
+        theaterContainer.appendChild(iframe);
 
-        // HTML要素をそのままThree.jsの3D空間に配置可能なオブジェクトへ変換
-        const objectCSS = new THREE.CSS3DObject(container);
+        // 3. CSS3Dオブジェクトとして3D空間のセンターに配置
+        const objectCSS = new THREE.CSS3DObject(theaterContainer);
         objectCSS.position.set(0, 0, 0);
         scene.add(objectCSS);
 
-        // 天体（太陽系など）は完全に消去された状態を維持
-
-        // 3. アニメーションループ
+        // 4. アニメーションループ
         function animate() {
             requestAnimationFrame(animate);
             controls.update();
@@ -80,7 +79,7 @@
         }
         animate();
 
-        // 画面リサイズ対応
+        // 画面リサイズへの自動追従設定
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
