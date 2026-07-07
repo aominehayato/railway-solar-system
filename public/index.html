@@ -7,32 +7,35 @@
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; color: #fff; font-family: sans-serif; }
         #info { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 8px; pointer-events: auto; max-width: 300px; z-index: 10; }
-        h1 { margin: 0 0 10px 0; font-size: 16px; }
+        h1 { margin: 0 0 5px 0; font-size: 16px; }
+        #videoTitle { font-size: 11px; color: #5865F2; margin-bottom: 10px; word-break: break-all; }
         .input-group { display: flex; gap: 5px; margin-top: 10px; }
         input[type="text"] { flex: 1; background: #222; border: 1px solid #444; color: #fff; padding: 5px; border-radius: 4px; font-size: 12px; }
         button { background: #5865F2; border: none; color: #fff; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; }
         button:hover { background: #4752C4; }
     </style>
+    <!-- Three.js & OrbitControls -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
     <div id="info">
         <h1>独自3Dストリームシアター</h1>
+        <div id="videoTitle">動画待ち受け中...</div>
         <div>
-            <label style="font-size: 12px; color: #ccc;">YouTube URL (通常・Shorts対応):</label>
+            <label style="font-size: 12px; color: #ccc;">YouTube / Shorts URL:</label>
             <div class="input-group">
                 <input type="text" id="videoUrl" placeholder="https://www.youtube.com/watch?v=...">
-                <button id="playBtn">再生</button>
+                <button id="playBtn">制限をバイパスして再生</button>
             </div>
         </div>
     </div>
 
-    <!-- 自分のサーバー（Railway）からデータを受け取るための独自ビデオタグ -->
+    <!-- 回避されたビデオストリームを受け取るHTML5ビデオ要素 -->
     <video id="videoElement" crossorigin="anonymous" playsinline style="display:none;"></video>
 
     <script>
-        // 1. 3D空間のセットアップ
+        // 1. 3D空間の基本設定
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -43,33 +46,54 @@
         camera.position.set(0, 0, 25);
         controls.update();
 
-        // 2. 独自スクリーンの生成
+        // 2. 独自3Dスクリーンの作成
         const video = document.getElementById('videoElement');
         const videoTexture = new THREE.VideoTexture(video);
         videoTexture.minFilter = THREE.LinearFilter;
         videoTexture.magFilter = THREE.LinearFilter;
 
+        // 16:9 のスクリーンを生成
         const screenGeometry = new THREE.PlaneGeometry(32, 18);
         const screenMaterial = new THREE.MeshBasicMaterial({ map: videoTexture, side: THREE.DoubleSide });
         const screenMesh = new THREE.Mesh(screenGeometry, screenMaterial);
         scene.add(screenMesh);
 
-        // 3. 自前APIへ中継させて再生開始
-        document.getElementById('playBtn').addEventListener('click', () => {
+        // 3. Invidiousのロジックを叩いて規制をスルー再生
+        document.getElementById('playBtn').addEventListener('click', async () => {
             const url = document.getElementById('videoUrl').value;
-            if (!url) return alert('YouTubeのURLを入力してください');
+            if (!url) return alert('URLを入力してください');
 
-            // 外部ドメイン（YouTube）ではなく、自前のプロキシAPIを完全に経由
-            video.src = `/api/stream?url=${encodeURIComponent(url)}`;
-            video.load();
-            
-            video.play().catch(err => {
-                console.error("Playback error:", err);
-                alert("ストリーミングの再構成に失敗しました。YouTube側のブロックが続いているか、別のURLでお試しください。");
-            });
+            document.getElementById('videoTitle').innerText = '制限をバイパス中...';
+
+            try {
+                // 自前バックエンド経由でInvidiousネットワークに問い合わせ
+                const response = await fetch(`/api/stream-url?url=${encodeURIComponent(url)}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    alert(data.error);
+                    document.getElementById('videoTitle').innerText = 'エラーが発生しました';
+                    return;
+                }
+
+                document.getElementById('videoTitle').innerText = `再生中: ${data.title}`;
+
+                // 規制スルーされた生のストリームURLを直接挿入
+                video.src = data.streamUrl;
+                video.load();
+                
+                video.play().catch(err => {
+                    console.error("Playback failed:", err);
+                    alert("ブラウザの自動再生ブロックにかかりました。画面をどこでもいいのでクリックしてから再度再生を押してください。");
+                });
+
+            } catch (err) {
+                console.error("Bypass API error:", err);
+                document.getElementById('videoTitle').innerText = '通信エラーが発生しました';
+            }
         });
 
-        // 4. ループ処理
+        // 4. アニメーションループ
         function animate() {
             requestAnimationFrame(animate);
             controls.update();
