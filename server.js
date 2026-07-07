@@ -31,10 +31,11 @@ async function createPadletPost(boardId, sectionId, subject, body) {
     try {
         const response = await fetch(url, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-API-KEY': apiKey
-            },
+            // server.js のヘッダー部分を修正
+headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${process.env.PADLET_API_KEY}` // X-API-KEY から変更
+},
             body: JSON.stringify(requestBody)
         });
 
