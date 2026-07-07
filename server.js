@@ -12,15 +12,16 @@ const server = createServer(app);
 
 const PORT = process.env.PORT || 8080;
 
-// ビルド済みスタティックファイルの配信
 app.use(express.static(path.join(__dirname, 'dist')));
 
-// CORSポリシーエラーを回避するため、サーバー側で中継を行う安定したPiped APIリスト
+// 2026年現在、高稼働・低規制の最新Piped APIエンドポイント
 const PIPED_APIS = [
+    'https://pipedapi-official.kavin.rocks',
+    'https://pipedapi.colby.rocks',
+    'https://pipedapi.us.to',
+    'https://piped-api.lunar.icu',
     'https://pipedapi.oxand.co',
-    'https://pipedapi.adminforge.de',
-    'https://pipedapi.r6.click',
-    'https://api.piped.projectsegfau.lt'
+    'https://pipedapi.adminforge.de'
 ];
 
 app.get('/api/bypass-stream', async (req, res) => {
@@ -29,7 +30,6 @@ app.get('/api/bypass-stream', async (req, res) => {
         return res.status(400).json({ success: false, error: '動画IDが指定されていません。' });
     }
 
-    // すべてのオリジンからのCORSを明示的に許可
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Content-Type', 'application/json');
@@ -37,10 +37,18 @@ app.get('/api/bypass-stream', async (req, res) => {
     for (const apiBase of PIPED_APIS) {
         try {
             const targetUrl = `${apiBase}/streams/${videoId}`;
-            console.log(`[Proxy Fetch] ターゲットURLにリクエスト中: ${targetUrl}`);
+            console.log(`[Proxy Trying] -> ${targetUrl}`);
             
             const data = await new Promise((resolve, reject) => {
-                const request = https.get(targetUrl, { timeout: 5000 }, (apiRes) => {
+                const options = {
+                    timeout: 4000,
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept': 'application/json'
+                    }
+                };
+
+                const request = https.get(targetUrl, options, (apiRes) => {
                     let body = '';
                     apiRes.on('data', chunk => body += chunk);
                     apiRes.on('end', () => {
@@ -48,10 +56,10 @@ app.get('/api/bypass-stream', async (req, res) => {
                             try {
                                 resolve(JSON.parse(body));
                             } catch (e) {
-                                reject(new Error('JSON解析エラー'));
+                                reject(new Error('JSON Parse Failed'));
                             }
                         } else {
-                            reject(new Error(`ステータスコード: ${apiRes.statusCode}`));
+                            reject(new Error(`HTTP Status ${apiRes.statusCode}`));
                         }
                     });
                 });
@@ -59,16 +67,16 @@ app.get('/api/bypass-stream', async (req, res) => {
                 request.on('error', reject);
                 request.on('timeout', () => {
                     request.destroy();
-                    reject(new Error('タイムアウト（5秒）'));
+                    reject(new Error('Timeout'));
                 });
             });
 
             if (data && data.videoStreams && data.videoStreams.length > 0) {
-                // 音声付きのストリームを優先的に抽出
+                // 音声と映像がセットのストリームを優先取得
                 const combinedStreams = data.videoStreams.filter(s => s.videoOnly === false);
                 const bestStream = combinedStreams.length > 0 ? combinedStreams[0] : data.videoStreams[0];
 
-                console.log(`[Proxy Success] ストリームの取得に成功しました。 Instance: ${apiBase}`);
+                console.log(`[Proxy Success] 接続確立: ${apiBase}`);
                 return res.json({
                     success: true,
                     title: data.title,
@@ -76,18 +84,20 @@ app.get('/api/bypass-stream', async (req, res) => {
                 });
             }
         } catch (err) {
-            console.warn(`[Proxy Warning] ${apiBase} でのエラー: ${err.message}. 次のインスタンスへ移行します。`);
+            console.warn(`[Proxy Bypassed] ${apiBase} 失敗: ${err.message}`);
         }
     }
 
-    res.status(500).json({ success: false, error: 'すべての回避サーバーが制限突破、または応答に失敗しました。時間をおいて再度お試しください。' });
+    res.status(500).json({ 
+        success: false, 
+        error: 'すべての回避インスタンスが一時的にブロックされているか、応答がありません。別の動画URLを試すか、数分後に再度実行してください。' 
+    });
 });
 
-// SPA用のフォールバックルート
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-    console.log(`[Backend Ready] CORS Bypass Server running on port ${PORT}`);
+    console.log(`[Server Core] Backend service activated on port ${PORT}`);
 });
