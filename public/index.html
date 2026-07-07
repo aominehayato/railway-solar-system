@@ -21,9 +21,9 @@
     <div id="info">
         <h1>独自3Dストリームシアター</h1>
         <div>
-            <label style="font-size: 12px; color: #ccc;">YouTube URL (Shortsも対応):</label>
+            <label style="font-size: 12px; color: #ccc;">動画ファイルの直URL (.mp4など):</label>
             <div class="input-group">
-                <input type="text" id="videoUrl" placeholder="https://www.youtube.com/watch?v=...">
+                <input type="text" id="videoUrl" placeholder="https://example.com/movie.mp4">
                 <button id="playBtn">再生</button>
             </div>
         </div>
@@ -60,15 +60,15 @@
         // 3. 動画ファイルの再生制御
         document.getElementById('playBtn').addEventListener('click', () => {
             const url = document.getElementById('videoUrl').value;
-            if (!url) return alert('URLを入力してください');
+            if (!url) return alert('動画ファイルのURLを入力してください');
 
-            // 外部URLを直接叩くのではなく、自分のサーバーのエンドポイントを経由させてCORSを回避
+            // 独自のストリーミングプロキシAPIを経由させてCORSを完全回避
             video.src = `/api/stream?url=${encodeURIComponent(url)}`;
             video.load();
             
             video.play().catch(err => {
                 console.error("Playback failed:", err);
-                alert("ストリーミングの開始に失敗しました。サーバーがYouTubeからブロックされているか、URLが無効な可能性があります。");
+                alert("ストリーミングの開始に失敗しました。URLが正しいか、または動画が壊れていないか確認してください。");
             });
         });
 
