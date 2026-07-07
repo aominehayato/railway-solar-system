@@ -1,6 +1,9 @@
-FROM node:20-alpine
+FROM node:18-slim
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
-CMD ["npm", "start"]
+RUN npm run build
+EXPOSE 8080
+CMD ["node", "server.js"]
