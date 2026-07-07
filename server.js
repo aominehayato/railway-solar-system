@@ -17,8 +17,7 @@ app.get('/api/bypass-stream', async (req, res) => {
     if (!videoId) return res.status(400).json({ error: 'ID required' });
 
     try {
-        const info = await ytdl.getInfo(videoId);
-        // 音声付きの高品質ストリームを自動選択
+        const info = await ytdl.getInfo(videoId); // agentなしでまずは試す
         const format = ytdl.chooseFormat(info.formats, { filter: 'audioandvideo', quality: 'highest' });
         
         res.json({ 
@@ -27,7 +26,8 @@ app.get('/api/bypass-stream', async (req, res) => {
             streamUrl: format.url 
         });
     } catch (e) {
-        res.status(500).json({ error: 'Direct stream extraction failed.' });
+        console.error('YTDL Error:', e.message);
+        res.status(500).json({ error: 'Extraction failed: ' + e.message });
     }
 });
 
