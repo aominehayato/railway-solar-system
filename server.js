@@ -12,7 +12,6 @@ const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
 
-// Railwayの割り当てポートを最優先で取得
 const PORT = process.env.PORT || 8080;
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -61,7 +60,6 @@ wss.on('connection', (ws) => {
     });
 });
 
-// ポートを指定してサーバーを起動
 server.listen(PORT, '0.0.0.0', () => {
     console.log(`Server is running on port ${PORT}`);
 });
