@@ -9,7 +9,7 @@ async function createPadletPost() {
     const BOARD_ID = '266991839'; 
     const SECTION_ID = '377956413';
     
-    // APIキーそのものだけでなく、Bearer認証スキームを試す
+    // 変数名は指示通り PADLET_API_KEY を使用
     const API_KEY = process.env.PADLET_API_KEY;
 
     const url = `https://api.padlet.dev/v1/boards/${BOARD_ID}/posts`;
@@ -19,8 +19,8 @@ async function createPadletPost() {
             "type": "post",
             "attributes": {
                 "content": {
-                    "subject": "自動投稿",
-                    "body": "Bearer認証でのテスト投稿"
+                    "subject": "自動投稿テスト",
+                    "body": "APIキーによる投稿"
                 },
                 "color": "blue"
             },
@@ -36,8 +36,8 @@ async function createPadletPost() {
         const response = await fetch(url, {
             method: 'POST',
             headers: {
-                // X-API-KEY ではなく、Bearer 認証形式を試します
-                'Authorization': `Bearer ${API_KEY}`,
+                // 公式仕様に従い X-API-KEY を使用
+                'X-API-KEY': API_KEY,
                 'Content-Type': 'application/vnd.api+json',
                 'Accept': 'application/vnd.api+json'
             },
@@ -49,6 +49,7 @@ async function createPadletPost() {
         if (response.status === 201) {
             console.log('✅ 投稿成功!', result);
         } else {
+            // エラー詳細を全て出力
             console.error('❌ 投稿失敗 (ステータスコード ' + response.status + '):', JSON.stringify(result, null, 2));
         }
     } catch (error) {
